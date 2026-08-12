@@ -1,0 +1,29 @@
+{
+  "_comment": "Блок hooks для .claude/settings.json — благодаря ему Python-гарды срабатывают в Claude Code (а не только в Codex). setup.sh вливает объект 'hooks' в .claude/settings.json, сохраняя остальные ключи.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": "python3 .ai/hooks/pre_tool_guard.py", "timeout": 5000 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "python3 .ai/hooks/post_tool_maintenance.py", "timeout": 3000 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "python3 .ai/hooks/stop_maintenance.py", "timeout": 3000 }
+        ]
+      }
+    ]
+  }
+}

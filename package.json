@@ -1,0 +1,38 @@
+{
+  "name": "ai-starter-kit",
+  "version": "0.1.0",
+  "description": "Установщик AI-конфигурации проекта: skills, rules, hooks, subagents и MCP из одного канона .ai/ с материализацией в Claude Code и Codex.",
+  "type": "module",
+  "bin": {
+    "ai-starter": "bin/ai-starter.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "123kapefa",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/123kapefa/ai-starter-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/123kapefa/ai-starter-kit/issues"
+  },
+  "homepage": "https://github.com/123kapefa/ai-starter-kit#readme",
+  "files": [
+    "bin",
+    "src",
+    "templates"
+  ],
+  "scripts": {
+    "start": "node bin/ai-starter.mjs"
+  },
+  "keywords": [
+    "ai",
+    "claude-code",
+    "codex",
+    "agents",
+    "skills",
+    "starter-kit"
+  ],
+  "license": "MIT"
+}
