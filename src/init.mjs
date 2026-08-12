@@ -97,19 +97,33 @@ export async function runInit(ctx) {
       hint: 'напр. npm run lint, dotnet build',
     });
 
-    answers.frontendDir = await p.ask('Папка фронтенда (пусто — нет)', d.frontend.dir || '', {
-      hint: 'для авто-форматирования после правок фронта; пусто — выключено',
-    });
+    if (d.frontend.dir) {
+      const useFront = await p.confirm(`Авто-форматирование фронта в папке «${d.frontend.dir}»?`, true, {
+        hint: 'eslint --fix / prettier --write на изменённых файлах фронта',
+      });
+      answers.frontendDir = useFront ? d.frontend.dir : '';
+    } else {
+      answers.frontendDir = await p.ask('Папка фронтенда (пусто — нет)', '', {
+        hint: 'для авто-форматирования после правок фронта; пусто — выключено',
+      });
+    }
     if (answers.frontendDir) {
-      answers.eslint = await p.confirm('eslint --fix после правок фронта?', d.frontend.formatters.eslint);
-      answers.prettier = await p.confirm('prettier --write после правок?', d.frontend.formatters.prettier);
+      answers.eslint = await p.confirm('  eslint --fix после правок фронта?', d.frontend.formatters.eslint);
+      answers.prettier = await p.confirm('  prettier --write после правок?', d.frontend.formatters.prettier);
     }
 
-    answers.indexTool = await p.ask('Индексатор кода (пусто — нет)', d.indexTool, {
-      hint: 'семантический индекс кода; напр. serena — ускоряет навигацию агента',
-    });
+    if (d.indexTool) {
+      const useIndex = await p.confirm(`Использовать индексатор кода «${d.indexTool}»?`, true, {
+        hint: 'семантический индекс для навигации агента; можно выключить',
+      });
+      answers.indexTool = useIndex ? d.indexTool : '';
+    } else {
+      answers.indexTool = await p.ask('Индексатор кода (пусто — нет)', '', {
+        hint: 'семантический индекс кода; напр. serena — ускоряет навигацию агента',
+      });
+    }
     answers.indexExtensions = answers.indexTool
-      ? parseList(await p.ask('Расширения для индексации', '.cs, .ts, .tsx, .js, .jsx'))
+      ? parseList(await p.ask('  Расширения для индексации', '.cs, .ts, .tsx, .js, .jsx'))
       : [];
 
     answers.mcp = await p.multiSelect(
