@@ -178,13 +178,13 @@ function linePrompter() {
     },
     async multiSelect(text, options, defValues = [], opts = {}) {
       hint(opts.hint);
-      console.log(`${c.cyan('?')} ${text} ${c.dim('(номера через запятую, пусто — ничего)')}`);
+      console.log(`${c.cyan('?')} ${text} ${c.dim('(номера через запятую; пусто — как отмечено)')}`);
       options.forEach((o, i) => {
         const on = defValues.includes(o.value) ? c.green('◉') : c.dim('◯');
         console.log(`  ${on} ${c.bold(String(i + 1))}. ${o.label}`);
       });
       const a = (await question('  выбор: ')).trim();
-      if (!a) return [];
+      if (!a) return [...defValues];
       const picked = a
         .split(/[,\s]+/)
         .map((x) => Number.parseInt(x, 10) - 1)

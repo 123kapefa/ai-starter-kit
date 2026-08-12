@@ -112,26 +112,17 @@ export async function runInit(ctx) {
       answers.prettier = await p.confirm('  prettier --write после правок?', d.frontend.formatters.prettier);
     }
 
-    if (d.indexTool) {
-      const useIndex = await p.confirm(`Использовать индексатор кода «${d.indexTool}»?`, true, {
-        hint: 'семантический индекс для навигации агента; можно выключить',
-      });
-      answers.indexTool = useIndex ? d.indexTool : '';
-    } else {
-      answers.indexTool = await p.ask('Индексатор кода (пусто — нет)', '', {
-        hint: 'семантический индекс кода; напр. serena — ускоряет навигацию агента',
-      });
-    }
-    answers.indexExtensions = answers.indexTool
-      ? parseList(await p.ask('  Расширения для индексации', '.cs, .ts, .tsx, .js, .jsx'))
-      : [];
-
+    // serena — единый инструмент: и MCP-навигация, и индекс. Спрашиваем один раз, в MCP.
+    const mcpDefault = d.indexTool === 'serena' ? ['serena'] : [];
     answers.mcp = await p.multiSelect(
       'Какие MCP-серверы включить',
       MCP_SERVERS.map((s) => ({ label: `${s} — ${MCP_HINT[s]}`, value: s })),
-      [],
-      { hint: 'доступ к внешним системам; по умолчанию — ничего (безопасно)' },
+      mcpDefault,
+      { hint: 'serena — локальная навигация по коду (безопасно); остальные — по потребности' },
     );
+    // Если serena включён — хуки держат его индекс свежим.
+    answers.indexTool = answers.mcp.includes('serena') ? 'serena' : '';
+    answers.indexExtensions = answers.indexTool ? ['.cs', '.ts', '.tsx', '.js', '.jsx'] : [];
 
     answers.profile = await p.select(
       'Профиль установки',
