@@ -9,6 +9,13 @@ import { buildProjectYml, buildHooksConfig } from './projectyml.mjs';
 import { computePlan, renderPlan, countCreate } from './plan.mjs';
 
 const MCP_SERVERS = ['serena', 'postgres', 'redis', 'grafana', 'admin'];
+const MCP_HINT = {
+  serena: 'навигация по коду',
+  postgres: 'диагностика БД',
+  redis: 'кэш и очереди',
+  grafana: 'логи и метрики',
+  admin: 'доменные операции через admin API',
+};
 
 function parseList(str) {
   return (str || '')
@@ -38,60 +45,85 @@ export async function runInit(ctx) {
   const p = createPrompter();
   try {
     const answers = {};
-    answers.projectName = await p.ask('Имя проекта', path.basename(cwd));
-    answers.stack = await p.ask('Стек', d.stack === 'неизвестно' ? '' : d.stack);
-    answers.tracker = await p.ask('Трекер задач (напр. GitHub Projects)', '');
+    answers.projectName = await p.ask('Имя проекта', path.basename(cwd), {
+      hint: 'как проект будет назван в AGENTS.md',
+    });
+    answers.stack = await p.ask('Стек', d.stack === 'неизвестно' ? '' : d.stack, {
+      hint: 'напр. «.NET + React»; влияет на детект миграций и подсказки по умолчанию',
+    });
+    answers.tracker = await p.ask('Трекер задач', '', {
+      hint: 'напр. GitHub Projects, Linear — попадёт в AGENTS.md и docs/agents',
+    });
 
     answers.protectedBranches = parseList(
-      await p.ask('Защищённые ветки', d.protectedBranches.join(', ')),
+      await p.ask('Защищённые ветки', d.protectedBranches.join(', '), {
+        hint: 'прямой push в них заблокирует хук; через запятую',
+      }),
     );
     answers.subtreeRoots = parseList(
-      await p.ask('Поддеревья под защитой от broad rm/checkout', d.topDirs.join(', ')),
+      await p.ask('Поддеревья под защитой', d.topDirs.join(', '), {
+        hint: 'корни, которые нельзя снести rm -rf / git checkout; напр. backend, frontend',
+      }),
     );
 
-    const migImmutable = await p.confirm(
-      'Защищать существующие миграции от правки?',
-      d.migrations.extensions.length > 0,
-    );
+    const migImmutable = await p.confirm('Защищать существующие миграции от правки?', d.migrations.extensions.length > 0, {
+      hint: 'хук запретит правку уже применённых миграций — изменения только новой миграцией',
+    });
     answers.migrations = { immutable: migImmutable, dir_markers: [], extensions: [] };
     if (migImmutable) {
       answers.migrations.dir_markers = parseList(
-        await p.ask('  Папки миграций (маркеры пути)', d.migrations.dir_markers.join(', ')),
+        await p.ask('Папки миграций (маркеры пути)', d.migrations.dir_markers.join(', '), {
+          hint: 'сегмент пути папки миграций — EF: Migrations, Django/Alembic: migrations или versions',
+        }),
       );
       answers.migrations.extensions = parseList(
-        await p.ask('  Расширения файлов миграций', d.migrations.extensions.join(', ')),
+        await p.ask('Расширения файлов миграций', d.migrations.extensions.join(', '), {
+          hint: 'тип файлов миграций — EF: .cs, Python: .py, Rails: .rb',
+        }),
       );
     }
 
     const defSecrets = /\.NET/.test(d.stack) ? 'appsettings.*.json, secrets.json' : '';
     answers.secretsExtraGlobs = parseList(
-      await p.ask('Доп. секрет-файлы (плюс к .env/*.pem/*.key)', defSecrets),
+      await p.ask('Доп. секрет-файлы', defSecrets, {
+        hint: 'globs, запрет записи — плюс к .env/*.pem/*.key; напр. appsettings.*.json',
+      }),
     );
 
-    answers.testCmd = await p.ask('Команда тестов', guessTest(d.stack, cwd));
-    answers.lintCmd = await p.ask('Команда линта/сборки', d.frontend.dir ? 'npm run lint' : '');
+    answers.testCmd = await p.ask('Команда тестов', guessTest(d.stack, cwd), {
+      hint: 'чем прогонять тесты — попадёт в AGENTS.md; напр. dotnet test, npm test',
+    });
+    answers.lintCmd = await p.ask('Команда линта/сборки', d.frontend.dir ? 'npm run lint' : '', {
+      hint: 'напр. npm run lint, dotnet build',
+    });
 
-    answers.frontendDir = await p.ask('Папка фронтенда (пусто — нет)', d.frontend.dir || '');
+    answers.frontendDir = await p.ask('Папка фронтенда (пусто — нет)', d.frontend.dir || '', {
+      hint: 'для авто-форматирования после правок фронта; пусто — выключено',
+    });
     if (answers.frontendDir) {
-      answers.eslint = await p.confirm('  eslint --fix после правок фронта?', d.frontend.formatters.eslint);
-      answers.prettier = await p.confirm('  prettier --write?', d.frontend.formatters.prettier);
+      answers.eslint = await p.confirm('eslint --fix после правок фронта?', d.frontend.formatters.eslint);
+      answers.prettier = await p.confirm('prettier --write после правок?', d.frontend.formatters.prettier);
     }
 
-    answers.indexTool = await p.ask('Индексатор кода (напр. serena; пусто — нет)', d.indexTool);
+    answers.indexTool = await p.ask('Индексатор кода (пусто — нет)', d.indexTool, {
+      hint: 'семантический индекс кода; напр. serena — ускоряет навигацию агента',
+    });
     answers.indexExtensions = answers.indexTool
-      ? parseList(await p.ask('  Расширения для индексации', '.cs, .ts, .tsx, .js, .jsx'))
+      ? parseList(await p.ask('Расширения для индексации', '.cs, .ts, .tsx, .js, .jsx'))
       : [];
 
     answers.mcp = await p.multiSelect(
-      'Какие MCP-серверы включить (по умолчанию — ни одного)',
-      MCP_SERVERS.map((s) => ({ label: s, value: s })),
+      'Какие MCP-серверы включить',
+      MCP_SERVERS.map((s) => ({ label: `${s} — ${MCP_HINT[s]}`, value: s })),
       [],
+      { hint: 'доступ к внешним системам; по умолчанию — ничего (безопасно)' },
     );
 
-    answers.profile = await p.choice(
+    answers.profile = await p.select(
       'Профиль установки',
       PROFILES.map((n) => ({ label: `${c.bold(n)} — ${PROFILE_INFO[n]}`, value: n })),
       1,
+      { hint: 'minimal ⊂ standard ⊂ safe; поднять уровень можно позже через update' },
     );
 
     // Сборка списка файлов и генерируемого контента
