@@ -59,12 +59,17 @@ function rawSelect({ title, hint, options, multi, defIndex = 0, defValues = [] }
     );
 
     const n = options.length;
+    const cols = () => (process.stdout.columns > 0 ? process.stdout.columns : 80);
     const draw = (redraw) => {
       if (redraw) process.stdout.write(`\x1b[${n}A`);
+      const prefix = multi ? 4 : 2; // «❯ »(2) + чекбокс «◉ »(2)
+      const max = Math.max(8, cols() - prefix - 1);
       options.forEach((o, i) => {
         const ptr = i === idx ? c.cyan('❯') : ' ';
         const box = multi ? (selected.has(i) ? `${c.green('◉')} ` : `${c.dim('◯')} `) : '';
-        const label = i === idx ? c.cyan(o.label) : o.label;
+        let text = String(o.label); // подпись без ANSI — иначе обрезка ломает escape
+        if (text.length > max) text = text.slice(0, max - 1) + '…';
+        const label = i === idx ? c.cyan(text) : text;
         process.stdout.write(`\x1b[2K${ptr} ${box}${label}\n`);
       });
     };

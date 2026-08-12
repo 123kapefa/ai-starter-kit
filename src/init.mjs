@@ -121,7 +121,7 @@ export async function runInit(ctx) {
 
     answers.profile = await p.select(
       'Профиль установки',
-      PROFILES.map((n) => ({ label: `${c.bold(n)} — ${PROFILE_INFO[n]}`, value: n })),
+      PROFILES.map((n) => ({ label: `${n} — ${PROFILE_INFO[n]}`, value: n })),
       1,
       { hint: 'minimal ⊂ standard ⊂ safe; поднять уровень можно позже через update' },
     );
