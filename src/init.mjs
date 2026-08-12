@@ -32,6 +32,24 @@ function guessTest(stack, cwd) {
   return '';
 }
 
+// Расширения для индексации кода — выводим из стека (и наличия фронта).
+function indexExtensionsFor(stack, frontendDir) {
+  const s = stack || '';
+  const ext = new Set();
+  if (/\.net\b/i.test(s)) ext.add('.cs');
+  if (/react|vue|svelte|angular|node|javascript|typescript|\bjs\b|\bts\b/i.test(s) || frontendDir) {
+    ['.ts', '.tsx', '.js', '.jsx'].forEach((e) => ext.add(e));
+  }
+  if (/django|python|\bpy\b/i.test(s)) ext.add('.py');
+  if (/\bgo\b|golang/i.test(s)) ext.add('.go');
+  if (/rails|ruby/i.test(s)) ext.add('.rb');
+  if (/\bjava\b/i.test(s)) ext.add('.java');
+  if (/\bphp\b/i.test(s)) ext.add('.php');
+  if (/rust/i.test(s)) ext.add('.rs');
+  if (!ext.size) ['.ts', '.tsx', '.js', '.jsx', '.py', '.go'].forEach((e) => ext.add(e));
+  return [...ext];
+}
+
 export async function runInit(ctx) {
   const { cwd, templatesDir, version } = ctx;
   const d = detectProject(cwd);
@@ -122,7 +140,7 @@ export async function runInit(ctx) {
     );
     // Если serena включён — хуки держат его индекс свежим.
     answers.indexTool = answers.mcp.includes('serena') ? 'serena' : '';
-    answers.indexExtensions = answers.indexTool ? ['.cs', '.ts', '.tsx', '.js', '.jsx'] : [];
+    answers.indexExtensions = answers.indexTool ? indexExtensionsFor(answers.stack, answers.frontendDir) : [];
 
     answers.profile = await p.select(
       'Профиль установки',
