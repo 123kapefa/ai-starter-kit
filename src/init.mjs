@@ -115,20 +115,10 @@ export async function runInit(ctx) {
       hint: 'напр. npm run lint, dotnet build',
     });
 
-    if (d.frontend.dir) {
-      const useFront = await p.confirm(`Авто-форматирование фронта в папке «${d.frontend.dir}»?`, true, {
-        hint: 'eslint --fix / prettier --write на изменённых файлах фронта',
-      });
-      answers.frontendDir = useFront ? d.frontend.dir : '';
-    } else {
-      answers.frontendDir = await p.ask('Папка фронтенда (пусто — нет)', '', {
-        hint: 'для авто-форматирования после правок фронта; пусто — выключено',
-      });
-    }
-    if (answers.frontendDir) {
-      answers.eslint = await p.confirm('  eslint --fix после правок фронта?', d.frontend.formatters.eslint);
-      answers.prettier = await p.confirm('  prettier --write после правок?', d.frontend.formatters.prettier);
-    }
+    // Авто-форматирование фронта — из детекта, без вопроса (no-op, если фронта нет).
+    answers.frontendDir = d.frontend.dir || '';
+    answers.eslint = answers.frontendDir ? d.frontend.formatters.eslint : false;
+    answers.prettier = answers.frontendDir ? d.frontend.formatters.prettier : false;
 
     // serena — единый инструмент: и MCP-навигация, и индекс. Спрашиваем один раз, в MCP.
     const mcpDefault = d.indexTool === 'serena' ? ['serena'] : [];
