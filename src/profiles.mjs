@@ -38,6 +38,7 @@ export function resolveFiles(profile, templatesDir) {
 
   // Всегда
   add('AGENTS.md', 'AGENTS.md');
+  add('CLAUDE.md', 'CLAUDE.md');
   add('.ai/setup.sh', '.ai/setup.sh');
   for (const f of walkFiles(T('.ai/rules'))) add(`.ai/rules/${f}`, `.ai/rules/${f}`);
 

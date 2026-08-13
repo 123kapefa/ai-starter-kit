@@ -1,8 +1,6 @@
 ---
 name: implement
 description: Дисциплинированный цикл сборки уже определённой задачи или спеки — seam, при уместности tdd, узкие и полные проверки, ревью. Требования не собирает и scope не планирует.
-type: workflow
-invocation: model
 ---
 
 # Implement

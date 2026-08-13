@@ -1,8 +1,6 @@
 ---
 name: setup-project-ai
 description: Подготовка AI-конфигурации проекта — собрать стек/трекер/ветки/проверки, выбрать профиль, показать план, применить после подтверждения, проверить doctor.
-type: workflow
-invocation: user
 ---
 
 # Setup project AI

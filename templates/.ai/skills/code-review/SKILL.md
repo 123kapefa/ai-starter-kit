@@ -1,8 +1,6 @@
 ---
 name: code-review
 description: Независимая проверка готового diff по двум осям — стандарты проекта и решение исходной задачи. Перед commit/PR. Read-only: сообщает проблемы, не правит сам.
-type: workflow
-invocation: user
 ---
 
 # Code review

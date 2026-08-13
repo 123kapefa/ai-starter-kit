@@ -1,8 +1,6 @@
 ---
 name: tdd
 description: Reference-методология цикла red→green→рефактор. Сначала договориться о публичной проверяемой границе (seam); тест проверяет поведение через неё, а не детали реализации.
-type: reference
-invocation: model
 ---
 
 # TDD

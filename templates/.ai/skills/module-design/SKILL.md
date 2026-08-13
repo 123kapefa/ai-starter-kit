@@ -1,8 +1,6 @@
 ---
 name: module-design
 description: Выделить модули, их публичные границы (seam) и зависимости до того, как код запутается. Для нового значимого компонента или сильно связанного существующего кода.
-type: workflow
-invocation: model
 ---
 
 # Module design

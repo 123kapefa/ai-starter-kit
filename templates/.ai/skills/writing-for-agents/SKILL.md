@@ -1,8 +1,6 @@
 ---
 name: writing-for-agents
 description: Как писать инструкции, которые помогают агенту действовать, а не раздувают контекст — убрать лишнее, отделить «зачем и когда» от пошагового workflow.
-type: workflow
-invocation: model
 ---
 
 # Writing for agents

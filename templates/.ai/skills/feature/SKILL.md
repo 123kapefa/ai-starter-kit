@@ -1,8 +1,6 @@
 ---
 name: feature
 description: Точка входа для новой функциональности (возможность, endpoint, frontend-flow, согласованное front+back) — требования, риски, план. Сборку ведёт по implement, проверку по code-review. Не для существующего бага.
-type: workflow
-invocation: user
 ---
 
 # Feature

@@ -1,8 +1,6 @@
 ---
 name: router
 description: Когда задача неясна и непонятно, с какого workflow начать — помогает выбрать маршрут и объясняет выбор, не начиная работу сам.
-type: router
-invocation: user
 ---
 
 # Router

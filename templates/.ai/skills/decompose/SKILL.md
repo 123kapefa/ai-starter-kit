@@ -1,8 +1,6 @@
 ---
 name: decompose
 description: Разбить спецификацию на маленькие независимые задачи с зависимостями. Каждая выполнима в одном свежем контексте агента и даёт проверяемый результат (tracer bullet).
-type: workflow
-invocation: model
 ---
 
 # Decompose
