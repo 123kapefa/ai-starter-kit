@@ -108,6 +108,36 @@ function detectBranches(cwd) {
   return ['main', 'master'];
 }
 
+function detectBackend(cwd) {
+  if (hasAny(cwd, [/\.csproj$/, /\.sln$/])) return 'dotnet';
+  if (exists(path.join(cwd, 'go.mod'))) return 'go';
+  if (exists(path.join(cwd, 'manage.py'))) return 'django';
+  if (exists(path.join(cwd, 'Gemfile'))) return 'rails';
+  if (hasAny(cwd, ['pom.xml', 'build.gradle'])) return 'java';
+  if (exists(path.join(cwd, 'pyproject.toml')) || exists(path.join(cwd, 'requirements.txt'))) {
+    const reqs =
+      (readFileSafe(path.join(cwd, 'requirements.txt')) || '') +
+      (readFileSafe(path.join(cwd, 'pyproject.toml')) || '');
+    if (/django/i.test(reqs)) return 'django';
+    return 'fastapi';
+  }
+  const pkg = readFileSafe(path.join(cwd, 'package.json'));
+  if (pkg && /express|fastify|@nestjs|koa/i.test(pkg)) return 'node';
+  if (pkg && !/react|vue|svelte|angular|next|nuxt|vite/i.test(pkg)) return 'node';
+  return '';
+}
+
+function detectFrontendFramework(cwd) {
+  const files = [path.join(cwd, 'package.json')];
+  for (const d of ['frontend', 'web', 'client', 'ui', 'app']) files.push(path.join(cwd, d, 'package.json'));
+  const blob = files.map((f) => readFileSafe(f) || '').join('\n');
+  if (/"next"|"react"/i.test(blob)) return 'react';
+  if (/"nuxt"|"vue"/i.test(blob)) return 'vue';
+  if (/svelte/i.test(blob)) return 'svelte';
+  if (/@angular\/core/i.test(blob)) return 'angular';
+  return '';
+}
+
 export function detectProject(cwd) {
   const isGit = exists(path.join(cwd, '.git'));
   const dirs = topDirs(cwd);
@@ -125,6 +155,9 @@ export function detectProject(cwd) {
     isEmpty: entries.length === 0,
     isExisting: entries.length > 0,
     stack,
+    backend: detectBackend(cwd),
+    frontendFw: detectFrontendFramework(cwd),
+    hasPrisma: exists(path.join(cwd, 'prisma', 'schema.prisma')) || exists(path.join(cwd, 'prisma')),
     topDirs: dirs,
     frontend,
     migrations: detectMigrations(cwd, stack),

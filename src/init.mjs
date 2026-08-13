@@ -1,4 +1,4 @@
-// ai-starter init — опросник (детект + подтверждение), план, безопасная запись.
+// ai-starter init — выбор стека (бэк+фронт) → вывод конфигурации → сводка → запись.
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { c, exists, writeFileEnsured, sha256 } from './fsutil.mjs';
@@ -7,6 +7,7 @@ import { detectProject } from './detect.mjs';
 import { resolveFiles, PROFILES, PROFILE_INFO } from './profiles.mjs';
 import { buildProjectYml, buildHooksConfig } from './projectyml.mjs';
 import { computePlan, renderPlan, countCreate } from './plan.mjs';
+import { BACKENDS, FRONTENDS, deriveConfig } from './stacks.mjs';
 
 const MCP_SERVERS = ['serena', 'postgres', 'redis', 'grafana', 'admin'];
 const MCP_HINT = {
@@ -24,30 +25,49 @@ function parseList(str) {
     .filter(Boolean);
 }
 
-function guessTest(stack, cwd) {
-  if (/\.NET/.test(stack)) return 'dotnet test';
-  if (exists(path.join(cwd, 'package.json'))) return 'npm test';
-  if (/Django|Python/.test(stack)) return 'pytest';
-  if (/Go/.test(stack)) return 'go test ./...';
-  return '';
+function labelOf(list, key) {
+  return (list.find((o) => o.key === key) || {}).label || key;
 }
 
-// Расширения для индексации кода — выводим из стека (и наличия фронта).
-function indexExtensionsFor(stack, frontendDir) {
-  const s = stack || '';
-  const ext = new Set();
-  if (/\.net\b/i.test(s)) ext.add('.cs');
-  if (/react|vue|svelte|angular|node|javascript|typescript|\bjs\b|\bts\b/i.test(s) || frontendDir) {
-    ['.ts', '.tsx', '.js', '.jsx'].forEach((e) => ext.add(e));
-  }
-  if (/django|python|\bpy\b/i.test(s)) ext.add('.py');
-  if (/\bgo\b|golang/i.test(s)) ext.add('.go');
-  if (/rails|ruby/i.test(s)) ext.add('.rb');
-  if (/\bjava\b/i.test(s)) ext.add('.java');
-  if (/\bphp\b/i.test(s)) ext.add('.php');
-  if (/rust/i.test(s)) ext.add('.rs');
-  if (!ext.size) ['.ts', '.tsx', '.js', '.jsx', '.py', '.go'].forEach((e) => ext.add(e));
-  return [...ext];
+function printSummary(a) {
+  const row = (k, v) => console.log(`  ${c.dim(k.padEnd(19))}${v}`);
+  const mig = a.migrations.immutable
+    ? `immutable · ${(a.migrations.dir_markers || []).join('/')}/*${(a.migrations.extensions || []).join(',')}`
+    : c.dim('не защищаются');
+  const fmt = a.frontendDir
+    ? `${a.frontendDir} · ${[a.eslint && 'eslint', a.prettier && 'prettier'].filter(Boolean).join(' + ') || '—'}`
+    : c.dim('выкл');
+  console.log(c.bold(`\nКонфигурация (стек: ${a.stack}):`));
+  row('тесты:', a.testCmd || c.dim('—'));
+  row('линт / сборка:', a.lintCmd || c.dim('—'));
+  row('защищённые ветки:', (a.protectedBranches || []).join(', ') || c.dim('—'));
+  row('поддеревья:', (a.subtreeRoots || []).join(', ') || c.dim('—'));
+  row('миграции:', mig);
+  row('секреты:', ['.env*', '*.pem', '*.key', ...(a.secretsExtraGlobs || [])].join(', '));
+  row('индекс:', a.indexTool ? `${a.indexTool} · ${(a.indexExtensions || []).join(' ')}` : c.dim('выкл'));
+  row('формат фронта:', fmt);
+  row('трекер:', a.tracker || c.dim('не задан'));
+  row('профиль:', a.profile);
+  row('MCP:', (a.mcp || []).join(', ') || c.dim('нет'));
+}
+
+async function editField(p, a) {
+  const FIELDS = [
+    { key: 'tracker', label: 'Трекер задач', type: 'text' },
+    { key: 'testCmd', label: 'Команда тестов', type: 'text' },
+    { key: 'lintCmd', label: 'Команда линта/сборки', type: 'text' },
+    { key: 'protectedBranches', label: 'Защищённые ветки', type: 'list' },
+    { key: 'subtreeRoots', label: 'Поддеревья под защитой', type: 'list' },
+    { key: 'secretsExtraGlobs', label: 'Доп. секрет-файлы', type: 'list' },
+    { key: 'migImmutable', label: 'Защищать миграции (вкл/выкл)', type: 'toggle' },
+    { key: '__done', label: '← готово', type: 'done' },
+  ];
+  const key = await p.select('Что поправить?', FIELDS.map((f) => ({ label: f.label, value: f.key })), FIELDS.length - 1);
+  const f = FIELDS.find((x) => x.key === key);
+  if (!f || f.type === 'done') return;
+  if (f.type === 'text') a[f.key] = await p.ask(f.label, a[f.key] || '');
+  else if (f.type === 'list') a[f.key] = parseList(await p.ask(`${f.label} (через запятую)`, (a[f.key] || []).join(', ')));
+  else if (f.type === 'toggle') a.migrations.immutable = await p.confirm('Защищать существующие миграции?', a.migrations.immutable);
 }
 
 export async function runInit(ctx) {
@@ -55,89 +75,71 @@ export async function runInit(ctx) {
   const d = detectProject(cwd);
 
   console.log(c.bold('\n🚀 ai-starter init') + c.dim(`  (${cwd})`));
-  console.log(c.dim('Собираю AI-конфигурацию проекта. Ничего не запишу без подтверждения.\n'));
-  console.log(`${c.dim('Обнаружено:')} стек ${c.cyan(d.stack)}`);
-  if (d.topDirs.length) console.log(`${c.dim('Папки верхнего уровня:')} ${d.topDirs.join(', ')}`);
+  console.log(c.dim('Собираю AI-конфигурацию проекта. Ничего не запишу без подтверждения.'));
+  const detBits = [];
+  if (d.backend) detBits.push(labelOf(BACKENDS, d.backend));
+  if (d.frontendFw) detBits.push(labelOf(FRONTENDS, d.frontendFw));
+  if (detBits.length) console.log(`${c.dim('Обнаружено:')} ${detBits.join(', ')}`);
   console.log('');
 
   const p = createPrompter();
   try {
-    const answers = {};
-    answers.projectName = await p.ask('Имя проекта', path.basename(cwd), {
-      hint: 'как проект будет назван в AGENTS.md',
+    const beDefault = Math.max(0, BACKENDS.findIndex((o) => o.key === d.backend));
+    const backendKey = await p.select('Бэкенд-стек', BACKENDS.map((o) => ({ label: o.label, value: o.key })), beDefault, {
+      hint: 'основной язык/фреймворк бэкенда — из него выводим тесты, миграции, секреты',
     });
-    answers.stack = await p.ask('Стек', d.stack === 'неизвестно' ? '' : d.stack, {
-      hint: 'напр. «.NET + React»; влияет на детект миграций и подсказки по умолчанию',
+    let backendName = '';
+    if (backendKey === 'other') backendName = await p.ask('Название бэкенда (пусто — нет бэкенда)', '');
+
+    const feDefault = Math.max(0, FRONTENDS.findIndex((o) => o.key === d.frontendFw));
+    const frontendKey = await p.select('Фронтенд-стек', FRONTENDS.map((o) => ({ label: o.label, value: o.key })), feDefault, {
+      hint: 'фреймворк фронта — для форматирования и индекса',
     });
-    answers.tracker = await p.ask('Трекер задач', '', {
-      hint: 'напр. GitHub Projects, Linear — попадёт в AGENTS.md и docs/agents',
-    });
+    let frontendName = '';
+    if (frontendKey === 'other') frontendName = await p.ask('Название фронта (пусто — нет фронта)', '');
 
-    answers.protectedBranches = parseList(
-      await p.ask('Защищённые ветки', d.protectedBranches.join(', '), {
-        hint: 'прямой push в них заблокирует хук; через запятую',
-      }),
-    );
-    answers.subtreeRoots = parseList(
-      await p.ask('Поддеревья под защитой', d.topDirs.join(', '), {
-        hint: 'корни, которые нельзя снести rm -rf / git checkout; напр. backend, frontend',
-      }),
-    );
-
-    const migImmutable = await p.confirm('Защищать существующие миграции от правки?', d.migrations.extensions.length > 0, {
-      hint: 'хук запретит правку уже применённых миграций — изменения только новой миграцией',
-    });
-    answers.migrations = { immutable: migImmutable, dir_markers: [], extensions: [] };
-    if (migImmutable) {
-      answers.migrations.dir_markers = parseList(
-        await p.ask('Папки миграций (маркеры пути)', d.migrations.dir_markers.join(', '), {
-          hint: 'сегмент пути папки миграций — EF: Migrations, Django/Alembic: migrations или versions',
-        }),
-      );
-      answers.migrations.extensions = parseList(
-        await p.ask('Расширения файлов миграций', d.migrations.extensions.join(', '), {
-          hint: 'тип файлов миграций — EF: .cs, Python: .py, Rails: .rb',
-        }),
-      );
-    }
-
-    const defSecrets = /\.NET/.test(d.stack) ? 'appsettings.*.json, secrets.json' : '';
-    answers.secretsExtraGlobs = parseList(
-      await p.ask('Доп. секрет-файлы', defSecrets, {
-        hint: 'globs, запрет записи — плюс к .env/*.pem/*.key; напр. appsettings.*.json',
-      }),
-    );
-
-    answers.testCmd = await p.ask('Команда тестов', guessTest(d.stack, cwd), {
-      hint: 'чем прогонять тесты — попадёт в AGENTS.md; напр. dotnet test, npm test',
-    });
-    answers.lintCmd = await p.ask('Команда линта/сборки', d.frontend.dir ? 'npm run lint' : '', {
-      hint: 'напр. npm run lint, dotnet build',
-    });
-
-    // Авто-форматирование фронта — из детекта, без вопроса (no-op, если фронта нет).
-    answers.frontendDir = d.frontend.dir || '';
-    answers.eslint = answers.frontendDir ? d.frontend.formatters.eslint : false;
-    answers.prettier = answers.frontendDir ? d.frontend.formatters.prettier : false;
-
-    // serena — единый инструмент: и MCP-навигация, и индекс. Спрашиваем один раз, в MCP.
-    const mcpDefault = d.indexTool === 'serena' ? ['serena'] : [];
-    answers.mcp = await p.multiSelect(
-      'Какие MCP-серверы включить',
-      MCP_SERVERS.map((s) => ({ label: `${s} — ${MCP_HINT[s]}`, value: s })),
-      mcpDefault,
-      { hint: 'serena — локальная навигация по коду (безопасно); остальные — по потребности' },
-    );
-    // Если serena включён — хуки держат его индекс свежим.
-    answers.indexTool = answers.mcp.includes('serena') ? 'serena' : '';
-    answers.indexExtensions = answers.indexTool ? indexExtensionsFor(answers.stack, answers.frontendDir) : [];
-
-    answers.profile = await p.select(
+    const profile = await p.select(
       'Профиль установки',
       PROFILES.map((n) => ({ label: `${n} — ${PROFILE_INFO[n]}`, value: n })),
       1,
       { hint: 'minimal ⊂ standard ⊂ safe; поднять уровень можно позже через update' },
     );
+
+    const mcpDefault = d.indexTool === 'serena' ? ['serena'] : [];
+    const mcp = await p.multiSelect(
+      'Какие MCP-серверы включить',
+      MCP_SERVERS.map((s) => ({ label: `${s} — ${MCP_HINT[s]}`, value: s })),
+      mcpDefault,
+      { hint: 'serena — локальная навигация по коду (безопасно); остальные — по потребности' },
+    );
+
+    // Вывод конфигурации из стека
+    const derived = deriveConfig(backendKey, frontendKey, {
+      backendName,
+      frontendName,
+      hasPrisma: d.hasPrisma,
+      frontendDir: d.frontend.dir,
+      protectedBranches: d.protectedBranches,
+      subtreeRoots: d.topDirs,
+    });
+
+    const answers = {
+      projectName: path.basename(cwd),
+      tracker: '',
+      profile,
+      mcp,
+      ...derived,
+    };
+    answers.indexTool = mcp.includes('serena') ? 'serena' : '';
+    if (!answers.indexTool) answers.indexExtensions = [];
+
+    // Сводка + правка отдельных пунктов
+    let confirmed = false;
+    while (!confirmed) {
+      printSummary(answers);
+      confirmed = await p.confirm('\nВсё верно?', true, { hint: 'n — поправить пункт' });
+      if (!confirmed) await editField(p, answers);
+    }
 
     // Сборка списка файлов и генерируемого контента
     const files = resolveFiles(answers.profile, templatesDir);
@@ -173,7 +175,6 @@ export async function runInit(ctx) {
       return;
     }
 
-    // Запись только новых файлов; существующие не трогаем
     let written = 0;
     const manifest = { generator: 'ai-starter-kit', version, profile: answers.profile, files: {} };
     for (const e of plan.entries) {
@@ -182,13 +183,9 @@ export async function runInit(ctx) {
       writeFileEnsured(path.join(cwd, e.dest), e.content, { mode: e.mode });
       written += 1;
     }
-    writeFileEnsured(
-      path.join(cwd, '.ai/.starter-manifest.json'),
-      JSON.stringify(manifest, null, 2) + '\n',
-    );
+    writeFileEnsured(path.join(cwd, '.ai/.starter-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
     console.log(c.green(`\n✓ Записано файлов: ${written}.`));
 
-    // Предложить материализацию «на машину»
     if (exists(path.join(cwd, '.ai/setup.sh'))) {
       const runSetup = await p.confirm('Запустить bash .ai/setup.sh (подключить к Claude Code / Codex)?', false);
       if (runSetup) {
