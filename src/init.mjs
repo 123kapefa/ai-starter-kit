@@ -1,8 +1,8 @@
 // ai-starter init — выбор стека (бэк+фронт) → вывод конфигурации → сводка → запись.
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { c, exists, writeFileEnsured, sha256 } from './fsutil.mjs';
 import { createPrompter } from './prompts.mjs';
+import { runSetup } from './setup.mjs';
 import { detectProject } from './detect.mjs';
 import { resolveFiles, PROFILES, PROFILE_INFO } from './profiles.mjs';
 import { buildProjectYml, buildHooksConfig } from './projectyml.mjs';
@@ -186,18 +186,17 @@ export async function runInit(ctx) {
     writeFileEnsured(path.join(cwd, '.ai/.starter-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
     console.log(c.green(`\n✓ Записано файлов: ${written}.`));
 
-    if (exists(path.join(cwd, '.ai/setup.sh'))) {
-      const runSetup = await p.confirm('Запустить bash .ai/setup.sh (подключить к Claude Code / Codex)?', false);
-      if (runSetup) {
-        try {
-          console.log(c.dim('\n$ bash .ai/setup.sh'));
-          execFileSync('bash', ['.ai/setup.sh'], { cwd, stdio: 'inherit' });
-        } catch {
-          console.log(c.yellow('setup.sh завершился с ошибкой — запустите вручную: bash .ai/setup.sh'));
-        }
-      } else {
-        console.log(c.dim('Пропущено. Позже: bash .ai/setup.sh'));
+    const doSetup = await p.confirm('Подключить к Claude Code / Codex сейчас?', false, {
+      hint: 'материализует .ai/ в .claude/ и ~/.claude/skills — кросс-платформенно (без bash)',
+    });
+    if (doSetup) {
+      try {
+        runSetup(ctx);
+      } catch (e) {
+        console.log(c.yellow(`Не удалось материализовать: ${e?.message || e}. Позже: ai-starter setup`));
       }
+    } else {
+      console.log(c.dim('Пропущено. Позже: ai-starter setup'));
     }
 
     console.log(c.bold('\nГотово. Проверьте установку: ') + c.cyan('ai-starter doctor'));

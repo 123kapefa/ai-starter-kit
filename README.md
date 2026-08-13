@@ -19,7 +19,7 @@ ai-starter init
 Опросник (с авто-детектом стека) → покажет план → создаст `.ai/` и `AGENTS.md` только после подтверждения. Подключить к Claude Code / Codex и проверить:
 
 ```bash
-bash .ai/setup.sh
+ai-starter setup
 ```
 
 ```bash
@@ -48,7 +48,7 @@ npm install -g ./ai-starter-kit-0.1.0.tgz
 
 ### Коллеге на том же проекте кит не нужен
 
-Если `.ai/` уже закоммичен в репозиторий проекта, достаточно `git pull && bash .ai/setup.sh`.
+Если `.ai/` уже закоммичен в репозиторий проекта, достаточно `git pull && ai-starter setup` (или `bash .ai/setup.sh` на macOS/Linux).
 
 ## Команды
 
@@ -57,12 +57,12 @@ npm install -g ./ai-starter-kit-0.1.0.tgz
 | `ai-starter init` | Опросник с авто-детектом стека → показывает план → пишет `.ai/`, `AGENTS.md`, `project.yml` только после подтверждения. Существующие файлы не трогает. |
 | `ai-starter doctor` | Проверяет структуру `.ai/`, подключение хуков к Claude, материализацию скилов/правил/агентов, наличие `python3`. |
 | `ai-starter update` | Приносит изменения шаблонов (diff), не перетирая локальные правки. |
-| `bash .ai/setup.sh` | Материализует `.ai/` → `.claude/` + `~/.claude/skills` + `~/.codex/skills`. |
+| `ai-starter setup` | Материализует `.ai/` → `.claude/` + `~/.claude/skills` + `~/.codex/skills`. Кросс-платформенно (Windows/macOS/Linux). |
 
 ## Две установки
 
 - **В репозиторий** (`init`) — `AGENTS.md`, `.ai/…` в Git, общее для команды.
-- **На машину** (`setup.sh`) — симлинки скилов, `.claude/settings.json` (хуки), `.claude/agents`, `.claude/rules`; локально у каждого.
+- **На машину** (`ai-starter setup`) — симлинки скилов, `.claude/settings.json` (хуки), `.claude/agents`, `.claude/rules`; локально у каждого.
 
 `.ai/` — единственный источник правды; `.claude/` **генерируется**, руками не редактируется.
 
@@ -79,5 +79,5 @@ Python-гарды на чистой stdlib (работают и в Claude, и в
 ## Требования
 
 - Node.js ≥ 18 (CLI, без внешних зависимостей).
-- Python 3 (для хуков профиля `safe`).
-- macOS / Linux. На Windows `init`/`doctor`/`update` работают, но `bash .ai/setup.sh` (bash + симлинки) — через WSL или Git Bash.
+- Python 3 (для хуков профиля `safe`) — на Windows нужен `python3` в PATH (или `py -3`).
+- Windows / macOS / Linux. `ai-starter setup` кросс-платформенный (на Windows использует junction-симлинки, без прав администратора; если симлинк недоступен — копирует). `bash .ai/setup.sh` остаётся как альтернатива для macOS/Linux.

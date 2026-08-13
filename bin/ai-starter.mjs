@@ -6,6 +6,7 @@ import { readFileSafe, c } from '../src/fsutil.mjs';
 import { runInit } from '../src/init.mjs';
 import { runDoctor } from '../src/doctor.mjs';
 import { runUpdate } from '../src/update.mjs';
+import { runSetup } from '../src/setup.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkgRoot = path.resolve(__dirname, '..');
@@ -16,6 +17,7 @@ const HELP = `${c.bold('ai-starter')} — установщик AI-конфигу
 
 ${c.bold('Использование:')}
   ai-starter init      опросник → каркас .ai/ + AGENTS.md (в репозиторий)
+  ai-starter setup     материализовать .ai/ в Claude Code / Codex (кросс-платформенно)
   ai-starter doctor    проверить структуру и материализацию
   ai-starter update    принести изменения шаблонов (не трогая локальные правки)
 
@@ -23,7 +25,7 @@ ${c.bold('Флаги:')}
   -h, --help           показать эту справку
   -v, --version        версия
 
-После init выполните ${c.cyan('bash .ai/setup.sh')} — подключение к Claude Code / Codex («на машину»).`;
+После init выполните ${c.cyan('ai-starter setup')} — подключение к Claude Code / Codex («на машину»).`;
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -42,6 +44,9 @@ async function main() {
   switch (cmd) {
     case 'init':
       await runInit(ctx);
+      break;
+    case 'setup':
+      runSetup(ctx);
       break;
     case 'doctor':
       runDoctor(ctx);
